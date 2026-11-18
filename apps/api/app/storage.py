@@ -2,7 +2,7 @@
 import os
 from datetime import datetime, timezone
 from uuid import uuid4
-from sqlalchemy import JSON, DateTime, ForeignKey, String, UniqueConstraint, create_engine
+from sqlalchemy import JSON, DateTime, ForeignKey, String, UniqueConstraint, create_engine, event
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 
 def utcnow() -> datetime:
@@ -95,6 +95,41 @@ class Activity(Base):
     last_seen: Mapped[datetime] = mapped_column(default=utcnow)
     seconds: Mapped[int] = mapped_column(default=0)
 
+class Receipt(Base):
+    __tablename__ = 'receipts'
+    key: Mapped[str] = mapped_column(primary_key=True)
+    fingerprint: Mapped[str]
+    result: Mapped[dict] = mapped_column(JSON)
+
+class Preference(Base):
+    __tablename__ = 'preferences'
+    learner_id: Mapped[str] = mapped_column(ForeignKey('learners.id'), primary_key=True)
+    leaderboard: Mapped[bool] = mapped_column(default=False)
+    settings: Mapped[dict] = mapped_column(JSON, default=dict)
+
+class GeneratedPack(Base):
+    __tablename__ = 'generated_packs'
+    id: Mapped[str] = mapped_column(primary_key=True, default=lambda: str(uuid4()))
+    request_id: Mapped[str | None] = mapped_column(ForeignKey('topic_requests.id'), nullable=True)
+    payload: Mapped[dict] = mapped_column(JSON)
+    status: Mapped[str] = mapped_column(default='review_required')
+    reviewer: Mapped[str | None] = mapped_column(ForeignKey('accounts.id'), nullable=True)
+    reviewed_at: Mapped[datetime | None] = mapped_column(nullable=True)
+
+class AIUsage(Base):
+    __tablename__ = 'ai_usage'
+    id: Mapped[str] = mapped_column(primary_key=True, default=lambda: str(uuid4()))
+    learner_id: Mapped[str] = mapped_column(ForeignKey('learners.id'))
+    operation: Mapped[str]
+    tokens: Mapped[int] = mapped_column(default=0)
+    model: Mapped[str]
+    created: Mapped[datetime] = mapped_column(default=utcnow)
+
 url = os.getenv('DATABASE_URL', 'sqlite:///./cognify-next.db')
 engine = create_engine(url, **({'connect_args': {'check_same_thread': False}} if url.startswith('sqlite') else {}))
+if url.startswith('sqlite'):
+    @event.listens_for(engine, 'connect')
+    def configure_sqlite(connection, _):
+        connection.execute('PRAGMA foreign_keys=ON')
+        connection.execute('PRAGMA busy_timeout=10000')
 factory = sessionmaker(engine, expire_on_commit=False)

@@ -1,5 +1,8 @@
 """Short, interactive learner journeys; every displayed reward is persisted."""
 import html
+import json
+from pathlib import Path
+import streamlit.components.v1 as components
 from datetime import timedelta
 import pandas as pd
 import plotly.express as px
@@ -163,7 +166,15 @@ def game_submit_callback(factory,user_id,attempt_id,count):
 
 
 def games(factory,user,profile):
-    hero('Small games. Big connections.', 'No timer. No lost lives. Just another way to learn.','GAME LAB')
+    hero('Pick a way to play.', 'Match, order, or solve a mini-scenario. Every round is practice with a little sparkle.','GAME ARCADE')
+    with factory() as session:
+        reward_state = snapshot(session, user.id, profile.id)
+    st.markdown(f'''<div class="quest-banner">
+        <div><span class="quest-kicker">GAME ARCADE</span><strong>Choose your challenge</strong>
+        <p>Replay any round. XP is a bonus; the real win is making the connection.</p></div>
+        <div class="quest-reward"><span>✦</span><b>{reward_state["total"]} XP</b><small>your total so far</small></div>
+    </div>''', unsafe_allow_html=True)
+    st.markdown('<div class="section-label">Pick a concept</div>', unsafe_allow_html=True)
     concept=concept_picker(factory,profile,'game_concept')
     with factory() as session:
         available=unlocked(session,user.id,profile.id,concept.id)
@@ -173,7 +184,7 @@ def games(factory,user,profile):
              'scenario':('Scenario quest','Use the idea in a real situation.','◇')}
     for col,(mode,(title,description,icon)) in zip(cols,details.items()):
         with col:
-            card(title,description,icon)
+            st.markdown(f'<div class="game-card"><span class="quest-icon">{icon}</span><h3>{title}</h3><p>{description}</p></div>', unsafe_allow_html=True)
             locked=mode=='scenario' and not available
             if st.button('Unlock with prerequisites' if locked else f'Play {title.lower()}',disabled=locked,key=f'start_{mode}',use_container_width=True):
                 with factory.begin() as session:
@@ -203,12 +214,19 @@ def games(factory,user,profile):
         st.info(attempt.payload['explanation'])
         st.button('Check what stuck',on_click=go,args=('Practice',concept.id),type='primary')
         return
-    with st.form(f'game_{aid}'):
-        st.caption('Use each answer once.' if attempt.mode!='scenario' else 'Choose the best next step.')
-        for i,prompt in enumerate(attempt.payload['prompts']):
-            st.selectbox(prompt,list(range(len(attempt.payload['options']))),index=None,
-                format_func=lambda i:attempt.payload['options'][i],key=f'game_answer_{aid}_{i}')
-        st.form_submit_button('Check my connections',type='primary',on_click=game_submit_callback,args=(factory,user.id,aid,len(attempt.payload['prompts'])))
+    game_data = dict(attempt.payload, mode=attempt.mode, reduced=st.session_state.get('reduce_motion', False))
+    source = Path(__file__).with_name('arcade.html').read_text()
+    # Escape HTML delimiters before embedding curricular strings in a script.
+    encoded = json.dumps(game_data).replace('<', '\\u003c').replace('>', '\\u003e').replace('&', '\\u0026')
+    components.html(source.replace('__GAME_DATA__', encoded), height=790, scrolling=True)
+    st.caption('Arcade stars are for this play session. Save a check below to earn profile XP.')
+    with st.expander('Save what you learned · earn XP'):
+        with st.form(f'game_{aid}'):
+            st.caption('Use each answer once.' if attempt.mode!='scenario' else 'Choose the best next step.')
+            for i,prompt in enumerate(attempt.payload['prompts']):
+                st.selectbox(prompt,list(range(len(attempt.payload['options']))),index=None,
+                    format_func=lambda i:attempt.payload['options'][i],key=f'game_answer_{aid}_{i}')
+            st.form_submit_button('Check my connections',type='primary',on_click=game_submit_callback,args=(factory,user.id,aid,len(attempt.payload['prompts'])))
     if st.session_state.get('game_error'):
         st.error(st.session_state.pop('game_error'))
 

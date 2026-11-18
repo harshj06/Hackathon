@@ -12,6 +12,7 @@ from cognify.services.learning import (build_path, start_assessment, submit_asse
     assessment_feedback, history, report)
 from cognify.services.documents import upload_document, get_document, recall_questions, grade_recall
 from cognify.services.buddy import BuddyService
+from cognify.services.engagement import snapshot
 from cognify.ui.style import hero, card, mascot
 from cognify.ui.routing import go
 
@@ -172,7 +173,18 @@ def narration(settings, user, profile, text):
 
 
 def practice(factory, settings, user, profile):
-    hero('Understanding starts here.', 'A short check. A useful explanation. Another chance to make it click.', EXPERIENCES[profile.age_group].quiz_label)
+    hero('Ready for a quick win?', 'Pick a quest, answer a few questions, and earn XP for showing what you know.', 'QUIZ QUEST')
+    with factory() as session:
+        reward_state = snapshot(session, user.id, profile.id)
+    st.markdown(f'''<div class="quest-banner">
+        <div><span class="quest-kicker">TODAY'S QUEST</span><strong>Play, learn, level up</strong>
+        <p>No timer. No pressure. Just a fresh chance to make it click.</p></div>
+        <div class="quest-reward"><span>✦</span><b>+10–30 XP</b><small>per completed quest</small></div>
+    </div>''', unsafe_allow_html=True)
+    xp_left, level, streak = st.columns(3)
+    xp_left.markdown(f'<div class="mini-stat"><span>XP today</span><b>{reward_state["today"]} / {reward_state["goal"]}</b></div>', unsafe_allow_html=True)
+    level.markdown(f'<div class="mini-stat"><span>Level</span><b>{reward_state["level"]}</b></div>', unsafe_allow_html=True)
+    streak.markdown(f'<div class="mini-stat"><span>Streak</span><b>{reward_state["streak"]} 🔥</b></div>', unsafe_allow_html=True)
     with factory() as session:
         focus=session.get(Concept,st.session_state.get('focus_concept',''))
     subject = st.selectbox('Subject', profile.subjects,index=profile.subjects.index(focus.subject) if focus and focus.subject in profile.subjects else 0)
@@ -180,8 +192,13 @@ def practice(factory, settings, user, profile):
         concepts = list(session.scalars(select(Concept).where(Concept.subject == subject).order_by(Concept.id)))
     cid = st.selectbox('Concept', [c.id for c in concepts],index=[c.id for c in concepts].index(focus.id) if focus and focus.id in [c.id for c in concepts] else 0, format_func=lambda x: next(c.title for c in concepts if c.id==x))
     concept = next(c for c in concepts if c.id==cid)
+    st.markdown('<div class="section-label">Choose your quest</div>', unsafe_allow_html=True)
     left,right = st.columns(2)
     for column,kind,label in [(left,'diagnostic','Start diagnostic'),(right,'verification','Verify understanding')]:
+        quest_title = 'Find your starting point' if kind == 'diagnostic' else 'See what stuck'
+        quest_copy = 'A gentle first look at this idea.' if kind == 'diagnostic' else 'A return visit to build confidence.'
+        with column:
+            st.markdown(f'<div class="quest-card"><span class="quest-icon">{"◎" if kind == "diagnostic" else "↻"}</span><b>{quest_title}</b><p>{quest_copy}</p></div>', unsafe_allow_html=True)
         if column.button(label, use_container_width=True):
             with factory.begin() as session:
                 attempt = start_assessment(session, user.id, profile.id, cid, kind)
@@ -193,13 +210,17 @@ def practice(factory, settings, user, profile):
             attempt = get_assessment(session, user.id, aid)
             questions = [session.get(Question, qid) for qid in attempt.question_ids]
         if attempt.profile_id == profile.id and not attempt.completed_at:
-            st.subheader(f'{attempt.kind.title()} · {len(questions)} questions')
-            st.caption('Prerequisite checks are included when needed. Every question must be answered; there is no timer. Early learners see two choices, juniors three, and other learners four. Scores across these formats are not directly comparable.')
+            answered = sum(st.session_state.get(f'q_{aid}_{q.id}') is not None for q in questions)
+            st.markdown(f'''<div class="round-header"><div><span class="quest-kicker">ROUND IN PROGRESS</span><h2>{attempt.kind.title()} quest</h2></div><div class="round-count">{answered} / {len(questions)} answered</div></div>''', unsafe_allow_html=True)
+            st.progress(answered / len(questions), text='Every answer moves your quest forward')
+            st.caption('Take your time. Choose one answer for each card.')
             with st.form(f'quiz_{aid}'):
                 choices = {}
                 for i,q in enumerate(questions):
-                    choices[q.id] = st.radio(f'{i+1}. {q.prompt}', display_choices(q,profile.age_group),
-                        format_func=lambda choice,q=q:q.options[choice], index=None, key=f'q_{aid}_{q.id}')
+                    with st.container(border=True):
+                        st.markdown(f'<span class="question-number">QUESTION {i+1}</span>', unsafe_allow_html=True)
+                        choices[q.id] = st.radio(q.prompt, display_choices(q,profile.age_group),
+                            format_func=lambda choice,q=q:q.options[choice], index=None, key=f'q_{aid}_{q.id}')
                 if st.form_submit_button('Check my understanding', type='primary'):
                     try:
                         with factory.begin() as session:
@@ -216,7 +237,10 @@ def practice(factory, settings, user, profile):
             attempt = get_assessment(session, user.id, result_id)
             feedback = assessment_feedback(session, user.id, result_id)
         if attempt.profile_id == profile.id:
-            st.success(f'{attempt.score:.0%} correct. Each answer helps us choose your next step.')
+            earned = round(10 + 20 * attempt.score)
+            st.markdown(f'''<div class="result-card"><span class="quest-kicker">QUEST COMPLETE</span><h2>{attempt.score:.0%} correct</h2><p>You earned <b>+{earned} XP</b>. Every try gives Buddy a better next step.</p></div>''', unsafe_allow_html=True)
+            # Keep a semantic status message for screen readers and the compact test harness.
+            st.success(f'{attempt.score:.0%} correct. Your next step is ready.')
             st.button('Reinforce this with a game',on_click=go,args=('Games',cid))
             for answer,q in feedback:
                 with st.expander(('✓ ' if answer.correct else '↻ ') + q.prompt):

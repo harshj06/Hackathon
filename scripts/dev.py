@@ -11,6 +11,13 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def main() -> int:
     env = os.environ.copy()
+    # Read explicitly supplied local configuration without printing secrets.
+    config = ROOT / '.env'
+    if config.exists():
+        for line in config.read_text().splitlines():
+            if line.strip() and not line.lstrip().startswith('#') and '=' in line:
+                key, value = line.split('=', 1)
+                env.setdefault(key.strip(), value.strip().strip('"').strip("'"))
     local_node = ROOT / '.tools/node_modules/node/bin'
     env['PATH'] = str(local_node) + os.pathsep + env['PATH']
     node = shutil.which('node', path=env['PATH'])
@@ -23,7 +30,11 @@ def main() -> int:
     env.setdefault('DATABASE_URL', 'sqlite:///' + str(ROOT / 'data/cognify-next.db'))
     env.setdefault('APP_ORIGIN', 'http://localhost:3000')
     env.setdefault('API_INTERNAL_URL', 'http://127.0.0.1:8000')
+    env.setdefault('NEXT_TELEMETRY_DISABLED', '1')
+    if env['DATABASE_URL'].startswith('sqlite:///./'):
+        env['DATABASE_URL'] = 'sqlite:///' + str(ROOT / env['DATABASE_URL'].removeprefix('sqlite:///./'))
     processes = []
+    subprocess.run([str(python), '-m', 'alembic', 'upgrade', 'head'], cwd=ROOT/'apps/api', env=env, check=True)
     def stop(*_):
         raise KeyboardInterrupt
     signal.signal(signal.SIGTERM, stop)

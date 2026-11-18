@@ -41,6 +41,33 @@ def theme(font_size=17, contrast=False, reduce_motion=False, accent='#6554C0'):
     .stat {{ background:#fff; border:1px solid #E1DEEF; border-radius:18px; padding:16px 20px; margin:10px 0; }}
     .stat span {{ display:block; color:#5C6075; font-size:13px; }}
     .stat strong {{ display:block; color:#524296; font-size:27px; margin-top:5px; }}
+    .mini-stat {{ background:#fff; border:1px solid #E1DEEF; border-radius:16px; padding:12px 16px; margin:8px 0 18px; }}
+    .mini-stat span {{ display:block; color:#666B80; font-size:12px; text-transform:uppercase; letter-spacing:.08em; }}
+    .mini-stat b {{ display:block; color:#524296; font-size:22px; margin-top:3px; }}
+    .quest-banner {{ display:flex; justify-content:space-between; gap:20px; align-items:center; background:linear-gradient(120deg,#35275D,#6554C0 58%,#7C6AE0); color:#fff; border-radius:22px; padding:22px 26px; margin:10px 0 12px; box-shadow:0 12px 24px #5D4BAC22; }}
+    .quest-banner strong {{ display:block; font-size:24px; letter-spacing:-.03em; }}
+    .quest-banner p {{ margin:3px 0 0; color:#EEEAFE; font-size:14px !important; }}
+    .quest-kicker {{ display:block; color:#CFC5FF; font-size:11px; font-weight:800; letter-spacing:.14em; margin-bottom:6px; }}
+    .quest-reward {{ min-width:120px; text-align:center; background:#FFFFFF1A; border:1px solid #FFFFFF33; border-radius:16px; padding:12px; }}
+    .quest-reward span {{ font-size:24px; color:#FFD477; }}
+    .quest-reward b,.quest-reward small {{ display:block; }}
+    .quest-reward small {{ color:#EEEAFE; font-size:11px; margin-top:2px; }}
+    .section-label {{ color:#5C4B9B; text-transform:uppercase; letter-spacing:.12em; font-size:12px; font-weight:800; margin:10px 0 4px; }}
+    .quest-card {{ min-height:92px; background:#fff; border:1px solid #DFE2EE; border-radius:17px 17px 0 0; padding:16px 18px 8px; }}
+    .quest-card b {{ display:inline-block; color:#292545; font-size:17px; margin-left:10px; }}
+    .quest-card p {{ margin:6px 0 0; color:#62677A; font-size:14px !important; }}
+    .game-card {{ background:#fff; border:1px solid #DFE2EE; border-radius:18px; padding:18px; min-height:150px; margin:16px 0 0; box-shadow:0 6px 14px #37305D08; }}
+    .game-card h3 {{ margin:12px 0 4px; font-size:18px; }}
+    .game-card p {{ margin:0; color:#62677A; font-size:14px !important; line-height:1.45; }}
+    .quest-icon {{ display:inline-grid; place-items:center; width:31px; height:31px; border-radius:10px; color:#fff; background:#7963CC; font-weight:800; }}
+    .round-header {{ display:flex; justify-content:space-between; align-items:end; gap:16px; margin:26px 0 8px; }}
+    .round-header h2 {{ margin:0; }}
+    .round-count {{ color:#5C4B9B; background:#EEE9FC; padding:8px 12px; border-radius:30px; font-weight:700; font-size:13px; }}
+    .question-number {{ color:#7562BA; font-size:11px; font-weight:800; letter-spacing:.14em; }}
+    .result-card {{ background:linear-gradient(120deg,#EAF7F0,#F1EDFF); border:1px solid #CFE6D9; border-radius:22px; padding:24px; margin:22px 0 14px; }}
+    .result-card h2 {{ margin:0 0 4px; }}
+    .result-card p {{ margin:0; color:#4B526A; }}
+    @media(max-width:640px) {{ .quest-banner {{ display:block; }} .quest-reward {{ margin-top:16px; }} .round-header {{ display:block; }} .round-count {{ display:inline-block; margin-top:8px; }} }}
     .trail {{ display:flex; align-items:center; gap:14px; padding:16px 8px; font-weight:600; color:#41425D; }}
     .trail span {{ display:grid; place-items:center; border:2px solid #CABFEA; border-radius:50%; min-width:38px; height:38px; color:#6554C0; background:#FFF; }}
     .playground {{ background:#ECE8FC; border:1px solid #DDD5F4; border-radius:22px; padding:28px; text-align:center; margin:16px 0; }}

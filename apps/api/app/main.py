@@ -16,6 +16,12 @@ from .security import hash_password, verify_password, limit
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(engine)
+    from .storage import GeneratedPack
+    from .content import Pack, PACKS
+    with factory() as session:
+        for draft in session.scalars(select(GeneratedPack).where(GeneratedPack.status=='published')):
+            pack=Pack.model_validate(draft.payload)
+            PACKS[pack.id]=pack
     yield
 
 app = FastAPI(title='Cognify API', version='1.0.0', lifespan=lifespan)
@@ -24,7 +30,11 @@ app = FastAPI(title='Cognify API', version='1.0.0', lifespan=lifespan)
 async def guard(request: Request, call_next):
     if request.method not in ('GET', 'HEAD', 'OPTIONS'):
         origin = request.headers.get('origin')
-        if origin and origin != os.getenv('APP_ORIGIN', 'http://localhost:3000'):
+        configured_origin = os.getenv('APP_ORIGIN', 'http://localhost:3000')
+        allowed_origins = {configured_origin}
+        if configured_origin in ('http://localhost:3000', 'http://127.0.0.1:3000'):
+            allowed_origins.update(('http://localhost:3000', 'http://127.0.0.1:3000'))
+        if origin and origin not in allowed_origins:
             from fastapi.responses import JSONResponse
             return JSONResponse({'detail': 'Origin not permitted'}, status_code=403)
         if request.headers.get('x-cognify-request') != '1':
@@ -37,6 +47,10 @@ async def guard(request: Request, call_next):
 
 def db():
     with factory.begin() as session:
+        # SQLite has no row locks. Serialize writes (and ownership reads) to keep
+        # retries, rewards and coin purchases atomic in this single local service.
+        if engine.dialect.name == 'sqlite':
+            session.execute(text('BEGIN IMMEDIATE'))
         yield session
 
 def current(request: Request, session=Depends(db)) -> Account:
@@ -129,3 +143,6 @@ def live(): return {'status':'ok'}
 def ready(session=Depends(db)):
     session.execute(text('SELECT 1'))
     return {'status':'ready', 'ai':'guided'}
+
+from .routes import install_routes
+install_routes(app, db, current, owned)
