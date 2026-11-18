@@ -13,3 +13,5 @@ node_modules/
 *.tsbuildinfo
 .coverage
 htmlcov/
+.tools/
+.venv-local/

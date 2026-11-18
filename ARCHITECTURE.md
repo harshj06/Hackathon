@@ -1,6 +1,6 @@
 # Cognify architecture proposal
 
-Status: awaiting approval. This document specifies the proposed replacement for the Streamlit prototype. Implementation begins only after approval, with a separate commit for each accepted phase. AI credentials and endpoint remain empty throughout development.
+Status: implementation approved; local-only development requested. This document specifies the replacement for the Streamlit prototype. Development proceeds in phased commits. AI credentials and endpoint remain empty throughout development. The current implementation status is recorded in README; planned features below are not claims of completion.
 
 ## Product and scope
 
@@ -23,12 +23,12 @@ Open topic support does not imply that arbitrary generated material is verified.
 | Companion | Original SVG character with animated states | No external animation vendor required; replaceable by Rive or Lottie later |
 | State | TanStack Query for server data, React state for local controls | Avoid a second global store until needed |
 | API | Python FastAPI, Pydantic, SQLAlchemy, Alembic | Reuse reviewed Python learning rules and provide OpenAPI contracts |
-| Durable storage | PostgreSQL | Transactions, constraints, ownership relations, migrations |
-| Ephemeral storage | Redis | Sessions, distributed rate limits, caches, leaderboard projections |
-| Background work | PostgreSQL jobs/outbox with a separate Python worker | Durable generation and deletion work without an additional queue framework |
+| Durable storage | Local SQLite through SQLAlchemy | No database server required for local development; PostgreSQL remains an optional future deployment adapter |
+| Ephemeral storage | In-process limits and cache, durable database sessions | No Redis service required for local development; one API process |
+| Background work | Database jobs/outbox with a local Python worker | Durable generation and deletion work without an additional queue framework |
 | AI | Provider adapter with versioned prompts and JSON schemas | Configurable provider, no mandatory vendor |
-| Local development | Docker Compose | One command starts web, API, worker, PostgreSQL, Redis, migrations and seed |
-| Delivery | GitHub Actions; portable containers | Hosting choice deferred until deployment approval |
+| Local development | Python setup and process launcher scripts | Dependencies installed locally; one command starts web and API |
+| Delivery | GitHub Actions and native application builds | No Docker; hosting choice deferred until deployment approval |
 
 Exact dependency versions are selected and locked in Phase 1 after compatibility checks. Deployment, OAuth and verification services are not provisioned by this proposal.
 
@@ -39,8 +39,8 @@ flowchart TD
   L[Learner browser] --> W[Next.js game interface]
   P[Guardian or admin browser] --> W
   W -->|Same origin REST and SSE| A[FastAPI authorization and validation]
-  A --> D[PostgreSQL durable records]
-  A --> R[Redis sessions limits and cache]
+  A --> D[Local SQLite durable records and sessions]
+  A --> R[Local limits and cache]
   A --> G[Server grading and adaptive engine]
   G --> D
   A --> S[Input safety and scope checks]
@@ -227,7 +227,8 @@ tests/{unit,integration,e2e,load,safety}/
 docs/{architecture,operations,privacy}/
 scripts/
 .github/workflows/
-compose.yaml
+scripts/dev.py
+scripts/setup.py
 .env.example
 README.md
 ```
@@ -251,7 +252,7 @@ MODERATION_ENDPOINT=
 
 No default remote endpoint, embedded key, automatic provider request or credential-file discovery is used in the replacement. AI is explicitly enabled only after configuration and safety readiness checks pass. Existing prototype configuration is unchanged during architecture review.
 
-Proposed local command: `docker compose up --build`. Compose runs an idempotent migration/seed job before starting dependent services. Seeds provide fictional learners and reviewed packs spanning academic, practical and creative topics. These demonstrate mechanics without restricting topic entry. README and setup scripts explain prerequisites, ports, reset/export procedures, guided mode and later AI configuration. Production secrets are supplied externally and never committed.
+Local commands: run `python scripts/setup.py` once, then `python scripts/dev.py`. The launcher starts Next.js and FastAPI directly, stores data in local SQLite and stops both processes on Ctrl+C. No container runtime or database service is required. Planned seed packs span academic, practical and creative topics without restricting topic entry. README and setup scripts explain prerequisites, ports and later AI configuration. Secrets are supplied externally and never committed.
 
 ## Quality and acceptance
 
@@ -263,7 +264,7 @@ Performance gates measure p95 non-LLM API latency below 300ms under a documented
 
 | Phase | Deliverables | Exit gate and commit |
 | --- | --- | --- |
-| 1 Foundation | Repository layout, typed web/API, tokens, Compose, Postgres/Redis, migrations, OpenAPI, CI, README and blank AI configuration | One-command guided startup; health checks and CI pass; foundation commit |
+| 1 Foundation | Repository layout, typed web/API, tokens, local launcher, SQLite, migrations, OpenAPI, CI, README and blank AI configuration | One-command guided startup; health checks and CI pass; foundation commit |
 | 2 Auth and onboarding | Adult auth, role/ownership checks, guardian relationships, consent states, avatar/companion selection, free-text learning goals and optional topic placement | Cross-account access tests, consent gating and onboarding E2E; onboarding commit |
 | 3 Companion | Persistent identity/memory, provider adapter, topic discovery and path generation, source provenance, versioned prompts, hints, moderated SSE, quotas/cache/usage | Guided mode works with no credentials; novel-topic requests, safe topic switching, validation gates and adapter contract tests pass; companion commit |
 | 4 Gamification | Worlds, levels, quests, four game modes, reward ledger, coins/shop, badges, daily quests, approved opt-in rankings | Gameplay E2E, keyboard equivalents and concurrent reward/purchase tests; gamification commit |
@@ -275,6 +276,6 @@ Each phase records tests and remaining limits in its commit. No placeholder AI i
 
 ## Decisions required before implementation
 
-India-first launch, open-topic learning for all ages and direct individual/family access with no teachers or schools are confirmed. Approve or amend the proposed Next.js/FastAPI/PostgreSQL/Redis stack and incremental replacement plan before Phase 1 begins. The skill framework and initial skill-pack inventory will be explicit implementation artifacts, with no board affiliation, grade-based admission restriction or fixed subject whitelist.
+India-first launch, open-topic learning for all ages and direct individual/family access with no teachers or schools are confirmed. Implementation is approved with Next.js, FastAPI and a Docker-free local setup. SQLite is the local default; external services are optional future deployment choices. The skill framework and initial skill-pack inventory will be explicit implementation artifacts, with no board affiliation, grade-based admission restriction or fixed subject whitelist.
 
 The parental verification approach must be approved before production consent implementation. Email/password is proposed for adult accounts; select any OAuth providers if required at launch. Launch language coverage, hosting, data residency and retention policy can be approved before their dependent phases. Until resolved, use synthetic demo data only for those flows. AI key and endpoint remain blank during development as requested.

@@ -1,5 +1,29 @@
 # Cognify · Learn with Buddy
 
+## New local application
+
+The Next.js/FastAPI replacement runs directly on your machine, without Docker.
+It currently includes adult registration/sign-in, sessions, learner profiles and
+companion selection. The remaining architecture phases are in development; the
+Streamlit prototype below remains available separately.
+
+Requirements: Python 3.11+ and Node.js 22+ with npm.
+
+```sh
+python scripts/setup.py
+python scripts/dev.py
+```
+
+Setup installs Python packages into `.venv-local` and web dependencies into
+`apps/web/node_modules`. The second command starts both services. Open
+http://localhost:3000; API documentation is at http://127.0.0.1:8000/docs.
+Ctrl+C stops both processes. SQLite data is saved in `data/cognify-next.db`.
+No Redis or PostgreSQL server is needed. AI_API_KEY and AI_ENDPOINT remain empty;
+the current local foundation makes no AI calls. Child profile creation is gated
+until a real guardian verification method is implemented.
+
+The existing Streamlit application and data have not been replaced.
+
 Cognify is a locally runnable, gamified adaptive learning application built with Streamlit,
 Python services, SQLite/SQLAlchemy, Pydantic, Pandas and Plotly. It includes real
 accounts, persisted learner records, deterministic assessments, optional OpenAI
